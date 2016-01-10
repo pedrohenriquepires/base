@@ -1,4 +1,4 @@
-# Project Name
+# Base project
 
 ## Development environment setup
 
