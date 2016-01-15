@@ -18,6 +18,7 @@ var paths = {
 	libScripts: [""],
 	libScriptsDist: "./dist/js/libs.min.js",
 	libStylesDist: "./dist/css/libs.min.css",
+	appViews: "./app/views/*.html"
 };
 
 var pipes = {};
@@ -45,7 +46,7 @@ pipes.minifyLibStyles = function(done){
 }
 
 pipes.compressAppScripts = function(){
-	return gulp.src(paths.appScripts)
+	gulp.src(paths.appScripts)
 		.pipe(angularFilesort())
 		.pipe(concat('app.min.js'))
 		.pipe(uglify())
@@ -56,24 +57,27 @@ pipes.compressLibScripts = function(){
 	if(paths.libScripts.length === 0)
 		return;
 
-	return gulp.src(paths.libScripts)
+	gulp.src(paths.libScripts)
 		.pipe(concat('libs.min.js'))
 		.pipe(uglify())
 		.pipe(gulp.dest("./dist/js/"));
 }
 
-pipes.buildIndex = function(){
-	setTimeout(function(){
-		var appScripts = gulp.src(paths.appScriptsDist, {read: false});
-		var libScripts = gulp.src(paths.libScriptsDist, {read: false});
-		var appStyles  = gulp.src(paths.appStylesDist, {read: false});
-		var libStyles  = gulp.src(paths.libStylesDist, {read: false});
+pipes.copyViews = function(){
+	gulp.src(paths.appViews)
+		.pipe(gulp.dest("./dist/views/"));
+}
 
-		return gulp.src(paths.index)
-			.pipe(inject(series(appScripts, libScripts), {relative: true}))
-			.pipe(inject(series(libStyles, appStyles), {relative: true}))
-			.pipe(gulp.dest("./dist/"));
-	}, 1000) // Dealay to create css folder if necessary
+pipes.indexInjector = function(){
+	var appScripts = gulp.src(paths.appScriptsDist, {read: false});
+	var libScripts = gulp.src(paths.libScriptsDist, {read: false});
+	var appStyles  = gulp.src(paths.appStylesDist, {read: false});
+	var libStyles  = gulp.src(paths.libStylesDist, {read: false});
+
+	gulp.src(paths.index)
+		.pipe(inject(series(appScripts, libScripts), {relative: true}))
+		.pipe(inject(series(libStyles, appStyles), {relative: true}))
+		.pipe(gulp.dest("./dist/"));
 }
 
 
@@ -81,16 +85,18 @@ gulp.task("sass", pipes.compileSass)
 	.task("compress-app", pipes.compressAppScripts)
 	.task("compress-lib", pipes.compressLibScripts)
 	.task("minify-lib-styles", pipes.minifyLibStyles)
-	.task("build-index", ["sass", "compress-app", "compress-lib", "minify-lib-styles"], pipes.buildIndex);
+	.task("copy-views", pipes.copyViews)
+	.task("index-injector", ["sass", "compress-app", "compress-lib", "minify-lib-styles", "copy-views"], pipes.indexInjector);
 
 gulp.task("default", [
 	"sass",
 	"compress-app", 
 	"compress-lib", 
 	"minify-lib-styles", 
-	"build-index"
+	"copy-views",
+	"index-injector"
 ]);
 
-gulp.task('watch', function() {
+gulp.task('watch-sass', function() {
 	gulp.watch(paths.sass, ['sass']);
 });
